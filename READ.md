@@ -10,6 +10,7 @@
   - bi_directional
 ### - Counters
   - sync up(4-bit)
+  - mod12_upcounter
   - bidirectional up-down
 ## SR latch-[RTL]
 ```bash
@@ -453,6 +454,102 @@ module four_counter_tb;
 		initial begin
    $monitor("clk=%b,reset=%b,data=%b,load=%b,count=%b",clk,reset,data,load,count);
 	end  
+endmodule
+```
+# mod12_upcounter
+## [RTL]
+```bash
+module mod12_upcounter(reset,clk,load,data,count,);
+input reset,clk,load;
+input [3:0]data;
+output reg[3:0]count;
+always @(posedge clk)
+begin 
+if(reset)
+  begin
+   count<=4'b0000;
+	end
+else if(count==4'b1100)
+   begin
+   count<=4'b0000;
+	end
+else if(load)
+   begin 
+	 count<=data;
+	end
+else
+  begin
+   count<=count+1;
+	end
+end 
+endmodule
+```
+## [Test bench]
+```bash
+module mod12_upcounter_tb;
+	reg reset;
+	reg clk;
+	reg load;
+	reg [3:0] data;
+	wire [3:0] count;
+   integer i;
+	// Instantiate the Unit Under Test (UUT)
+	mod12_upcounter uut (.reset(reset), .clk(clk), .load(load), .data(data), .count(count));
+      always
+	  begin
+	 clk=1'b0;
+	 #10;
+	 clk=1'b1;
+	 #10;
+	 end
+	 task re_set;
+	 begin
+	 @(negedge clk);
+	  reset=1'b1;
+	 @(negedge clk);
+	  reset=1'b0;
+	  end
+    endtask	 
+    task in(input [3:0]k);
+     begin
+       data=k;
+      end
+    endtask	
+	 task load_(input a);
+	 begin
+	   load=a;
+	 end
+	 endtask
+	initial begin
+		clk = 0;
+		reset = 0;
+		load = 0;
+		data = 0;
+		#10;
+		re_set;
+      load_(0);
+		in(4'b0001);
+		re_set;
+		load_(1);
+		in(4'b1001);
+		re_set;
+		load_(1);
+		in(4'b0001);
+		re_set;
+	   load_(0);
+		in(4'b1001);
+		re_set;
+      load_(1);
+		in(4'b1100);
+		#10;
+		end
+	end
+       initial begin
+      #500 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,load=%b,data=%b,count=%b",clk,reset,load,data,count);
+      end
 endmodule
 ```
 # bidirectional up-down
