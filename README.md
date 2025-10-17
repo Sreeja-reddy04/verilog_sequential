@@ -1,4 +1,7 @@
 # Flipflops
+ - D Flip flop
+ - T Flip flop
+ - JK Flip flop
 ## D Flip flop
 ## [RTL]
 ```bash
@@ -67,7 +70,7 @@ module dff_tb();
       end
 endmodule
 ```
-# T Flipflop
+# T Flip flop
 ## [RTL]
 ```bash
 module tff(clock,reset,t,q,qb);
@@ -167,7 +170,7 @@ module tff_tb;
       end  
 endmodule
 ```
-# JK Flipflop
+# JK Flip flop
 ## [RTL]
 ```bash
 module jkff(clk,reset,j,k,q,qb);
