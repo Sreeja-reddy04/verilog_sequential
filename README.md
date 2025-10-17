@@ -13,11 +13,8 @@ endmodule
 ## [Test bench]
 ```bash
 module SR_latch_tb;
-
-	// Inputs
 	reg s;
 	reg r;
-	// Outputs
 	wire q;
 	wire qb;
 	// Instantiate the Unit Under Test (UUT)
@@ -28,22 +25,14 @@ module SR_latch_tb;
 		r = 0;
 		// Wait 100 ns for global reset to finish
 		#100;
-		  s=0;
-      r=1;#10;
-      s=0;
-      r=0;#10;
-		  s=1;
-      r=0;#10;
-		  s=1;
-      r=1;#10;
-		  s=0;
-      r=1;#10;
-      s=0;
-      r=0;#10;
-		  s=1;
-      r=0;#10;
-		  s=1;
-      r=1;#10;
+		  s=0;r=1;#10;
+          s=0;r=0;#10;
+		  s=1;r=0;#10;
+		  s=1;r=1;#10;
+		  s=0;r=1;#10;
+          s=0; r=0;#10;
+		  s=1; r=0;#10;
+		  s=1; r=1;#10;
 	end
      initial begin
       #1000$finish;
