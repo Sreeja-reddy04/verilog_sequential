@@ -3,7 +3,8 @@
  - T Flip flop
  - JK Flip flop
 # Memories
- - 16x8 
+ - 16x8
+ - 8x16
 ## D Flip flop
 ## [RTL]
 ```bash
@@ -388,5 +389,126 @@ module ram16_8_tb;
       initial begin
        #1000 $finish;
       end		 
+endmodule
+```
+# 8x16
+### [RTL]
+```bash
+module ram8_16(clk,din,dout,reset,we,re,wa,ra);
+parameter WIDTH=16,
+          DEPTH=8,
+			 add=3;
+input re,we,clk,reset;
+input [add-1:0]wa,ra;
+input [WIDTH-1:0]din;
+output reg [WIDTH-1:0]dout;
+reg [WIDTH-1:0]mem[DEPTH-1:0];
+always@(posedge clk or posedge reset)
+begin
+if(reset)
+begin
+dout<=0;
+end
+else
+begin
+if(we==1)
+mem[wa]<=din;
+if(re==1)
+dout<=mem[ra];
+end
+end
+endmodule
+```
+## [Test bench]
+```bash
+module ram8_16_tb;
+
+	// Inputs
+	reg clk;
+	reg [15:0] din;
+	reg reset;
+	reg we;
+	reg re;
+	reg [2:0] wa;
+	reg [2:0] ra;
+
+	// Outputs
+	wire [15:0] dout;
+
+	// Instantiate the Unit Under Test (UUT)
+	ram8_16 uut (
+		.clk(clk), 
+		.din(din), 
+		.dout(dout), 
+		.reset(reset), 
+		.we(we), 
+		.re(re), 
+		.wa(wa), 
+		.ra(ra)
+	);
+    always
+		  begin
+		  clk=0;
+		  #5;
+		  clk=1;
+		  #5;
+		  end
+		  task re_set();
+		  begin
+		  @(negedge clk)
+		  reset=1'b1;
+		  @(negedge clk)
+		  reset=1'b0;
+		  end
+		  endtask
+		  task write(input[2:0]m,input n,[15:0]p);
+		  begin
+		  din=p;
+		  wa=m;
+		  we=n;
+		  end 
+		  endtask
+		  task read([2:0]k,input l);
+		  begin
+		  ra=k;
+		  re=l;
+		  end 
+		  endtask
+	initial begin
+		// Initialize Inputs
+		clk = 0;
+		din = 0;
+		reset = 0;
+		we = 0;
+		re = 0;
+		wa = 0;
+		ra = 0;
+		// Wait 100 ns for global reset to finish
+		#100;
+       write(001,1,16'hA);
+		 #10;
+		 write(111,1,16'h8);
+		 #10;
+		 write(101,0,16'h1);
+		 #10;
+		 write(011,1,16'h6);
+		 #10;
+		 read(001,1);
+		 #10;
+		 read(111,1);
+		 #10;
+		 read(101,0);
+		 #10;
+		 read(011,1);
+		 #10;
+		// Add stimulus here
+
+	end
+      initial begin
+        $monitor("clk=%b reset=%b we=%b re=%b wa=%b ra=%b din=%h dout=%h",clk,reset,we,re,wa,ra,din,dout);
+      end
+      initial begin
+       #200 $finish;
+      end	
 endmodule
 ```
