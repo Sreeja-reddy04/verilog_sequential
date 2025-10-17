@@ -1,4 +1,5 @@
-# D Flip flop
+# Flipflops
+## D Flip flop
 ## [RTL]
 ```bash
 module dff(clock,reset,d_in,Q_out,Qb_out);
