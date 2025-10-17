@@ -2,6 +2,8 @@
  - D Flip flop
  - T Flip flop
  - JK Flip flop
+# Memories
+ - 16x8 
 ## D Flip flop
 ## [RTL]
 ```bash
@@ -281,5 +283,110 @@ module jkff_tb;
 		initial begin
    $monitor("clk=%b,reset=%b,j=%b,k=%b,q=%b,qb=%b",clk,reset,j,k,q,qb);
       end
+endmodule
+```
+# 16x8 
+## [RTL]
+```bash
+module ram16_8(clk,din,dout,reset,we,re,wa,ra);
+parameter WIDTH=8,
+          DEPTH=16,
+			 add=4;
+input re,we,clk,reset;
+input [add-1:0]wa,ra;
+input [WIDTH-1:0]din;
+output reg [WIDTH-1:0]dout;
+reg [WIDTH-1:0]mem[DEPTH-1:0];
+always@(posedge clk or posedge reset)
+begin
+if(reset)
+begin
+dout<=0;
+end
+else
+begin
+if(we==1)
+mem[wa]<=din;
+if(re==1)
+dout<=mem[ra];
+end
+end
+endmodule
+```
+## [Test bench]
+```bash
+module ram16_8_tb;
+	reg clk;
+	reg [7:0] din;
+	reg reset;
+	reg we;
+	reg re;
+	reg [3:0] wa;
+	reg [3:0] ra;
+	wire [7:0] dout;
+	// Instantiate the Unit Under Test (UUT)
+	ram16_8 uut (.clk(clk), .din(din), .dout(dout), .reset(reset), .we(we), .re(re), .wa(wa), .ra(ra));
+	    always
+		  begin
+		  clk=0;
+		  #5;
+		  clk=1;
+		  #5;
+		  end
+		  task re_set();
+		  begin
+		  @(negedge clk)
+		  reset=1'b1;
+		  @(negedge clk)
+		  reset=1'b0;
+		  end
+		  endtask
+		  task write(input [3:0]a,input m,input [7:0]l);
+		  begin
+		  @(negedge clk)
+		  din=l;
+		  wa=a;
+		  we=m;
+		  end
+		  endtask
+		  task read(input [3:0]b,input n);
+		  begin
+		  @(negedge clk)
+		  ra=b;
+		  re=n;
+		  end
+		  endtask
+	initial begin
+		clk = 0;
+		din = 0;
+		reset = 0;
+		we = 0;
+		re = 0;
+		wa = 0;
+		ra = 0;
+		#100;
+		re_set;
+		write(4'b1000,1,8'b11110000);
+		#10;
+		write(4'b0001,1,8'b00001111);
+		#10;
+		write(4'b0000,0,8'b11111111);
+		#10;
+		read(4'b1000,1'b1);
+		#10;
+		write(4'b1111,1,8'b11111111);
+		read(4'b1111,1'b1);
+      #10;
+		read(4'b0001,1'b1);
+      #10;
+		read(4'b0000,1'b0);
+      #10;
+	end
+      initial begin
+        $monitor("clk=%b reset=%b we=%b re=%b wa=%b ra=%b din=%b dout=%b",clk,reset,we,re,wa,ra,din,dout);
+      end
+      initial begin
+       #1000 $finish;
+      end		 
 endmodule
 ```
