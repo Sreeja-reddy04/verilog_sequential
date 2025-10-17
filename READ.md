@@ -1,6 +1,7 @@
 ***Goofy-Gadgets***
 # sequential circuits
 ### - latch
+  - SR latch
 ### - Shift Registers
   - siso
   - sipo
@@ -214,5 +215,70 @@ module piso_tb;
       end
 endmodule
 ```
+# pipo
+## [RTL]
+```bash
+module pipo(clk,reset,prll_out,prll_in);
+input clk,reset;
+input[3:0]prll_in;
+output reg[3:0]prll_out;
+always@(posedge clk or posedge reset)
+begin
+ if(reset)
+	 prll_out<=4'b0000;
+ else 
+    prll_out<=prll_in;
+end
+endmodule
+```
+## [Test bench]
+```bash
+module pipo_tb;
 
+	// Inputs
+	reg clk;
+	reg reset;
+	reg [3:0] prll_in;
+
+	// Outputs
+	wire [3:0] prll_out;
+
+	// Instantiate the Unit Under Test (UUT)
+	pipo uut (
+		.clk(clk), 
+		.reset(reset), 
+		.prll_out(prll_out), 
+		.prll_in(prll_in)
+	);
+	always #5 clk=~clk;
+
+	initial begin
+		// Initialize Inputs
+		clk = 0;
+		reset = 1;
+		prll_in = 4'b0000;
+
+		// Wait 100 ns for global reset to finish
+		#100;
+		reset=0;
+		prll_in=4'b1010;
+		#10; // Add stimulus here
+      prll_in=4'b1110;
+		#10;
+		prll_in=4'b0011;
+		#10;
+		prll_in=4'b0001;
+		#10;
+	end
+       initial begin
+      #200 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b, prll_in=%b,prll_out=%b",clk,reset,prll_in,prll_out);
+	//Step3 : Use $monitor to display the various inputs and outputs
+      end
+endmodule
+
+
+```
 
