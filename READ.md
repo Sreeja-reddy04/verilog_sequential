@@ -7,6 +7,10 @@
   - sipo
   - piso
   - pipo
+  - bi_directional
+### - Counters
+  - sync up(4-bit)
+  - bidirectional up-down
 ## SR latch-[RTL]
 ```bash
 module SR_latch(s,r,q,qb);
@@ -278,7 +282,270 @@ module pipo_tb;
 	//Step3 : Use $monitor to display the various inputs and outputs
       end
 endmodule
-
-
 ```
-
+# bi_directional
+## [RTL]
+```bash
+module bidir_shift_reg(clk,reset,load,shift_dir,prl_in,prl_out);
+input clk,reset,load,shift_dir;
+input [3:0]prl_in;
+output reg[3:0]prl_out;
+//input shift_left,shift_right;
+always@(posedge clk or posedge reset)
+begin
+  if(reset)
+  begin
+     prl_out<=4'b0000;
+  end
+  else if(load)
+     begin
+    prl_out<=prl_in;
+	  end
+  else if(shift_dir)
+       begin
+    prl_out<={prl_out[2:0],1'b0};
+	    end
+  else
+        begin
+    prl_out<={1'b0,prl_out[3:1]};
+	     end
+end
+endmodule
+```
+## [Test bench]
+```bash
+module bidir_shift_reg_tb;
+	reg clk;
+	reg reset;
+	reg load;
+	reg shift_dir;
+	reg [3:0] prl_in;
+	wire [3:0] prl_out;
+	bidir_shift_reg uut (
+		.clk(clk), 
+		.reset(reset), 
+		.load(load), 
+		.shift_dir(shift_dir), 
+		.prl_in(prl_in), 
+		.prl_out(prl_out)
+	);   
+	  always #5 clk=~clk;
+	initial begin
+		clk = 0;
+		reset = 1;
+		load = 0;
+		//shift_left=0;
+		//shift_right=0;
+		shift_dir = 0;
+		prl_in = 4'b0000;
+		#5 reset = 1;
+      #10 reset = 0;
+    prl_in = 4'b1010;
+    load = 1;
+    #10; 
+	 load = 0; 
+    // Shift left operation
+    shift_dir = 1;
+	 #10;
+	 shift_dir = 0;
+	 #10;
+	 shift_dir = 1;
+	 #40;
+	end
+     initial begin
+      #200 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,load=%b shift_dir=%b prl_in=%b,prl_out=%b",clk,reset,load,shift_dir,prl_in,prl_out);
+      end 
+endmodule
+```
+# sync up(4-bit)
+## [RTL]
+```bash
+module four_counter(clk,reset,load,data,count);
+input clk,reset,load;
+input [3:0]data;
+output reg[3:0]count;
+always @(posedge clk)
+begin
+if(reset)
+begin
+count<=0;
+end
+else if(load)
+begin
+count<=data;
+end
+else
+begin
+count<=count+1;
+end
+end
+endmodule
+```
+## [Test bench]
+```bash
+module four_counter_tb;
+	reg clk;
+	reg reset;
+	reg load;
+	reg [3:0] data;
+	wire [3:0] count;
+   integer i;
+	// Instantiate the Unit Under Test (UUT)
+	four_counter uut (.clk(clk), .reset(reset), .load(load), .data(data), .count(count));
+	always
+	  begin
+	 clk=1'b0;
+	 #10;
+	 clk=1'b1;
+	 #10;
+	 end
+	 task re_set;
+	 begin
+	 @(negedge clk);
+	  reset=1'b1;
+	 @(negedge clk);
+	  reset=1'b0;
+	  end
+    endtask	 
+    task in(input [3:0]k);
+     begin
+       data=k;
+      end
+    endtask	
+	 task load_(input a);
+	 begin
+	   load=a;
+	 end
+	 endtask
+	initial begin
+		// Initialize Inputs
+		clk = 0;
+		reset = 0;
+		load = 0;
+		data = 0;
+		#10;
+		re_set;
+       load_(0);
+		in(4'b0001);
+		re_set;
+		load_(1);
+		in(4'b1001);
+		re_set;
+		load_(1);
+		in(4'b0001);
+		re_set;
+	   load_(0);
+		in(4'b1001);
+		re_set;
+      load_(1);
+		in(4'b1101);
+		#10;
+		re_set;
+        load_(1);
+		end
+	end
+	initial begin
+      #1000$finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,data=%b,load=%b,count=%b",clk,reset,data,load,count);
+	end  
+endmodule
+```
+# bidirectional up-down
+## [RTL]
+```bash
+module up_downcounter(clk,reset,load,data,dir,count);
+input clk,reset,dir,load;
+input [3:0]data;
+output reg[3:0]count;
+always @(posedge clk)
+begin
+if(reset)
+begin
+count<=0;
+end
+else if(load)
+begin
+count<=data;
+end
+else if(dir)
+begin
+count<=count+1;
+end
+else
+begin
+count<=count-1;
+end
+end
+endmodule
+```
+## [Test bench]
+```bash
+module up_downcounter_tb;
+	reg clk;
+	reg reset;
+	reg load;
+	reg [3:0] data;
+	reg dir;
+	wire [3:0] count;
+	up_downcounter uut (.clk(clk), .reset(reset), .load(load), .data(data), .dir(dir), .count(count));
+	always
+	  begin
+	 clk=1'b0;
+	 #10;
+	 clk=1'b1;
+	 #10;
+	 end
+      task re_set;
+	 begin
+	 @(negedge clk);
+	  reset=1'b1;
+	 @(negedge clk);
+	  reset=1'b0;
+	  end
+    endtask	 
+    task in(input [3:0]k);
+     begin
+       data=k;
+      end
+    endtask	
+	 task load_(input a);
+	 begin
+	   load=a;
+	 end
+	 endtask
+	 task dirr(input w);
+	 begin
+	  dir=w;
+	 end
+	 endtask
+	initial begin
+		clk = 0;
+		reset = 0;
+		load = 0;
+		data = 0;
+		dir = 0;
+		#100;
+		dirr(1);
+		re_set;
+		load_(1);
+		in(4'b0001);
+		dirr(0);
+		re_set;
+	   load_(0);
+		in(4'b1001);
+		in(4'b1101);
+		#10;
+	end
+      initial begin
+      #600 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,data=%b,load=%b,dir=%b;count=%b",clk,reset,data,load,dir,count);
+      end  
+endmodule
+```
