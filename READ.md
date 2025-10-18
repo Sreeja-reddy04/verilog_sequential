@@ -14,6 +14,9 @@
   - 3_bit asyn down counter posedge
   - mod12_upcounter
   - bidirectional up-down
+  - 4-bit Ring counter
+  - N-bit Ring counter
+  - Johnson counter
 ## SR latch-[RTL]
 ```bash
 module SR_latch(s,r,q,qb);
@@ -861,5 +864,237 @@ module threebit_asyn_down_counter_tbb;
 	$monitor(" t0=%b,t1=%b,t2=%b, reset=%b clk=%b Q0=%b,Q1=%b,Q2=%b,qb0=%b,qb1=%b,qb2=%b",t0,t1,t2,reset,clk,Q0,Q1,Q2,qb0,qb1,qb2);
     end  
 endmodule
+```
+# 4-bit Ring counter
+## [RTl]
+```bash
+module ring_counter(clk,pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3,q0,q1,q2,q3,qb0,qb1,qb2,qb3);
+input clk;
+input  pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3;
+output q0,q1,q2,q3,qb0,qb1,qb2,qb3;
+wire a,b,c,e;
+dff d1(.clk(clk),.clr(clr0),.pre(pr0),.d_in(e),.Q_out(a),.Qb_out(qb0));
+dff d2(.clk(clk),.clr(clr1),.pre(pr1),.d_in(a),.Q_out(b),.Qb_out(qb1));
+dff d3(.clk(clk),.clr(clr2),.pre(pr2),.d_in(b),.Q_out(c),.Qb_out(qb2));
+dff d4(.clk(clk),.clr(clr3),.pre(pr3),.d_in(c),.Q_out(e),.Qb_out(qb3));
+assign q0=a;
+assign q1=b;
+assign q2=c;
+assign q3=e;
+endmodule
 
+module dff(clk,clr,pre,d_in,Q_out,Qb_out);
+   input clk,d_in,clr,pre;
+	output reg Q_out;
+	output Qb_out;
+   always@(posedge clk or posedge clr or posedge pre)
+      begin
+	 if(clr)
+	    Q_out <= 1'b0;
+	 else if(pre)
+	    Q_out <= 1'b1;
+	 else
+	    Q_out <= d_in;
+      end			
+	 assign Qb_out=~(Q_out); 
+endmodule  
+```
+## [Test bench]
+```bash
+module ring_counter_tb;
+	reg clk;
+	reg pr0;
+	reg pr1;
+	reg pr2;
+	reg pr3;
+	reg clr0;
+	reg clr1;
+	reg clr2;
+	reg clr3;
+	wire q0;
+	wire q1;
+	wire q2;
+	wire q3;
+	wire qb0;
+	wire qb1;
+	wire qb2;
+	wire qb3;
+	ring_counter uut (
+		.clk(clk), 
+		.pr0(pr0), 
+		.pr1(pr1), 
+		.pr2(pr2), 
+		.pr3(pr3), 
+		.clr0(clr0), 
+		.clr1(clr1), 
+		.clr2(clr2), 
+		.clr3(clr3), 
+		.q0(q0), 
+		.q1(q1), 
+		.q2(q2), 
+		.q3(q3), 
+		.qb0(qb0), 
+		.qb1(qb1), 
+		.qb2(qb2), 
+		.qb3(qb3)
+	);
+	 always 
+	 begin
+	 clk=1'b0;
+	 #10;
+	 clk=1'b1;
+	 #10;
+	 end
+	initial begin
+       clk = 0;
+    pr0 = 0; pr1 = 0; pr2 = 0; pr3 = 0;
+    clr0 = 1; clr1 = 1; clr2 = 1; clr3 = 1; // clear all first
+    #20;
+    clr0 = 0; clr1 = 0; clr2 = 0; clr3 = 0;
+    pr3 = 1;
+    #10;pr3 = 0;
+	end
+       initial begin
+      #500 $finish;
+		end
+		initial begin
+$monitor("clk=%b,pr0=%b,pr1=%b,pr2=%b,pr3=%b,clr0=%b,clr1=%b,clr2=%b,clr3=%b,q0=%b,q1=%b,q2=%b,q3=%b,qb0=%b,qb1=%b,qb2=%b,qb3=%b",clk,pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3,q0,q1,q2,q3,qb0,qb1,qb2,qb3);
+      end
+endmodule
+```
+# N-bit Ring counter
+## [RTL]
+```bash
+module ring_counter(clk,count,reset);  
+parameter N=6;
+input clk,reset;
+output reg [N-1:0]count;
+always @(posedge clk)
+if(reset)
+begin
+ count=1;
+end
+else 
+begin
+count={count[0],count[N-1:1]}; 
+end
+endmodule
+```
+## [Test bench]
+```bash
+module ring_counter_tb;
+parameter N=6;
+reg clk;
+reg reset;
+wire [N-1:0]count;
+ring_counter dut(.clk(clk),.reset(reset),.count(count));
+always #5 clk=~clk;
+initial 
+begin
+clk=0;
+reset=1;
+#10;
+reset=0;
+end
+initial begin
+      #500 $finish;
+		end
+		initial begin
+		$monitor("clk=%b reset=%b count=%b",clk,reset,count);
+		end
+endmodule
+```
+# Johnson counter
+## [RTL]
+```bash
+module johnson_counter(clk,pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3,q0,q1,q2,q3,qb0,qb1,qb2,qb3);
+input clk;
+input  pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3;
+output q0,q1,q2,q3,qb0,qb1,qb2,qb3;
+wire a,b,c,e;
+dff d1(.clk(clk),.clr(clr0),.pre(pr0),.d_in(~e),.Q_out(a),.Qb_out(qb0));
+dff d2(.clk(clk),.clr(clr1),.pre(pr1),.d_in(a),.Q_out(b),.Qb_out(qb1));
+dff d3(.clk(clk),.clr(clr2),.pre(pr2),.d_in(b),.Q_out(c),.Qb_out(qb2));
+dff d4(.clk(clk),.clr(clr3),.pre(pr3),.d_in(c),.Q_out(e),.Qb_out(qb3));
+assign q0=a;
+assign q1=b;
+assign q2=c;
+assign q3=e;
+endmodule
+module dff(clk,clr,pre,d_in,Q_out,Qb_out);
+   input clk,d_in,clr,pre;
+	output reg Q_out;
+	output Qb_out;
+   always@(posedge clk or posedge clr or posedge pre)
+      begin
+	 if(clr)
+	    Q_out <= 1'b0;
+	 else if(pre)
+	    Q_out <= 1'b1;
+	 else
+	    Q_out <= d_in;
+      end			
+	 assign Qb_out=~(Q_out); 
+endmodule 
+```
+## [Test bench]
+```bash
+module johnson_counter_tb;
+	reg clk;
+	reg pr0;
+	reg pr1;
+	reg pr2;
+	reg pr3;
+	reg clr0;
+	reg clr1;
+	reg clr2;
+	reg clr3;
+	wire q0;
+	wire q1;
+	wire q2;
+	wire q3;
+	wire qb0;
+	wire qb1;
+	wire qb2;
+	wire qb3;
+	johnson_counter uut (
+		.clk(clk), 
+		.pr0(pr0), 
+		.pr1(pr1), 
+		.pr2(pr2), 
+		.pr3(pr3), 
+		.clr0(clr0), 
+		.clr1(clr1), 
+		.clr2(clr2), 
+		.clr3(clr3), 
+		.q0(q0), 
+		.q1(q1), 
+		.q2(q2), 
+		.q3(q3), 
+		.qb0(qb0), 
+		.qb1(qb1), 
+		.qb2(qb2), 
+		.qb3(qb3)
+	);
+always 
+	 begin
+	 clk=1'b0;#10;
+     clk=1'b1; #10;
+	 end
+	initial begin
+   clk = 0;
+    pr0 = 0; pr1 = 0; pr2 = 0; pr3 = 0;
+    clr0 = 1; clr1 = 1; clr2 = 1; clr3 = 1; // clear all first
+    #20;
+    clr0 = 0; clr1 = 0; clr2 = 0; clr3 = 0;
+    pr3 = 1;
+    #10;pr3 = 0;
+	end
+       initial begin
+      #500 $finish;
+		end
+		initial begin
+$monitor("clk=%b,pr0=%b,pr1=%b,pr2=%b,pr3=%b,clr0=%b,clr1=%b,clr2=%b,clr3=%b,q0=%b,q1=%b,q2=%b,q3=%b,qb0=%b,qb1=%b,qb2=%b,qb3=%b",clk,pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3,q0,q1,q2,q3,qb0,qb1,qb2,qb3);
+      end
+endmodule
 ```
