@@ -10,6 +10,8 @@
   - bi_directional
 ### - Counters
   - sync up(4-bit)
+  - 3_bit asyn up counter posedge
+  - 3_bit asyn down counter posedge
   - mod12_upcounter
   - bidirectional up-down
 ## SR latch-[RTL]
@@ -645,4 +647,219 @@ module up_downcounter_tb;
    $monitor("clk=%b,reset=%b,data=%b,load=%b,dir=%b;count=%b",clk,reset,data,load,dir,count);
       end  
 endmodule
+```
+# 3_bit asyn up counter posedge
+## [RTL]
+```bash
+//3 bit asynchronous up counter using posedge triggerd T-FF
+module threebit_asyn_up_counter(t0,t1,t2,reset,clk,Q0,Q1,Q2,qb0,qb1,qb2);
+input t0,t1,t2,clk,reset;
+wire q0,q1,q2;
+output qb0,qb1,qb2;
+output Q0,Q1,Q2;
+
+tff a1(.clk(clk),.reset(reset),.t(t0),.q(q0),.qb(qb0));
+tff a2(.clk(qb0),.reset(reset),.t(t1),.q(q1),.qb(qb1));
+tff a3(.clk(qb1),.reset(reset),.t(t2),.q(q2),.qb(qb2));
+assign Q0=q0;
+assign Q1=q1;
+assign Q2=q2;
+
+endmodule
+module tff(clk,reset,t,q,qb);
+input clk,t,reset;
+output reg q;
+output qb;
+always@(posedge clk or posedge reset)
+if(reset)
+begin
+q<=1;
+end
+else
+begin
+ case(t)
+  0:q<=q;
+  1:q<=~q;
+  endcase
+end
+assign qb=~q;
+endmodule
+```
+## [Test bench]
+```bash
+module threebit_asyn_up_counter_tbb;
+
+	// Inputs
+	reg t0;
+	reg t1;
+	reg t2;
+	reg reset;
+	reg clk;
+
+	// Outputs
+	wire Q0;
+	wire Q1;
+	wire Q2;
+	wire qb0;
+	wire qb1;
+	wire qb2;
+   integer i;
+	// Instantiate the Unit Under Test (UUT)
+	threebit_asyn_up_counter uut (
+		.t0(t0), 
+		.t1(t1), 
+		.t2(t2), 
+		.reset(reset), 
+		.clk(clk), 
+		.Q0(Q0), 
+		.Q1(Q1), 
+		.Q2(Q2), 
+		.qb0(qb0), 
+		.qb1(qb1), 
+		.qb2(qb2)
+	);
+	   always
+	  begin
+	 clk=1'b0;
+	 #10;
+	 clk=1'b1;
+	 #10;
+	 end
+		 task re_set;
+	 begin
+	 @(negedge clk);
+	  reset=1'b1;
+	 
+	 @(negedge clk);
+	  reset=1'b0;
+	  end
+    endtask	
+	initial begin
+		// Initialize Inputs
+		t0 = 0;
+		t1 = 0;
+		t2 = 0;
+		reset = 0;
+		clk = 0;
+		#10;
+        re_set;
+		  t0=1;
+		  t1=1;
+		  t2=1;
+		  #20;
+	end
+	initial begin
+	#500 $finish;
+	end
+	initial begin 
+	$monitor(" t0=%b,t1=%b,t2=%b, reset=%b clk=%b Q0=%b,Q1=%b,Q2=%b,qb0=%b,qb1=%b,qb2=%b",t0,t1,t2,reset,clk,Q0,Q1,Q2,qb0,qb1,qb2);
+    end  
+endmodule
+```
+# 3_bit asyn down counter posedge
+## [RTL]
+```bash
+//3 bit asynchronous down counter using posedge triggerd T-FF
+module threebit_asyn_down_counter(t0,t1,t2,reset,clk,Q0,Q1,Q2,qb0,qb1,qb2);
+input t0,t1,t2,clk,reset;
+wire q0,q1,q2;
+output qb0,qb1,qb2;
+output Q0,Q1,Q2;
+
+tff a1(.clk(clk),.reset(reset),.t(t0),.q(q0),.qb(qb0));
+tff a2(.clk(q0),.reset(reset),.t(t1),.q(q1),.qb(qb1));
+tff a3(.clk(q1),.reset(reset),.t(t2),.q(q2),.qb(qb2));
+assign Q0=q0;
+assign Q1=q1;
+assign Q2=q2;
+
+endmodule
+module tff(clk,reset,t,q,qb);
+input clk,t,reset;
+output reg q;
+output qb;
+always@(posedge clk)
+if(reset)
+begin
+q<=1;
+end
+else
+begin
+ case(t)
+  0:q<=q;
+  1:q<=~q;
+  endcase
+end
+assign qb=~q;
+endmodule
+```
+## [Test bench]
+```bash
+module threebit_asyn_down_counter_tbb;
+	// Inputs
+	reg t0;
+	reg t1;
+	reg t2;
+	reg reset;
+	reg clk;
+	// Outputs
+	wire Q0;
+	wire Q1;
+	wire Q2;
+	wire qb0;
+	wire qb1;
+	wire qb2;
+   integer i;
+	// Instantiate the Unit Under Test (UUT)
+	threebit_asyn_down_counter uut (
+		.t0(t0), 
+		.t1(t1), 
+		.t2(t2), 
+		.reset(reset), 
+		.clk(clk), 
+		.Q0(Q0), 
+		.Q1(Q1), 
+		.Q2(Q2), 
+		.qb0(qb0), 
+		.qb1(qb1), 
+		.qb2(qb2)
+	);
+	   always
+	  begin
+	 clk=1'b0;
+	 #10;
+	 clk=1'b1;
+	 #10;
+	 end
+		 task re_set;
+	 begin
+	 @(negedge clk);
+	  reset=1'b1;
+	 
+	 @(negedge clk);
+	  reset=1'b0;
+	  end
+    endtask	
+	initial begin
+		// Initialize Inputs
+		t0 = 0;
+		t1 = 0;
+		t2 = 0;
+		reset = 0;
+		clk = 0;
+		#10;
+        re_set;
+		  t0=1;
+		  t1=1;
+		  t2=1;
+		  #20;
+	end
+	initial begin
+	#500 $finish;
+	end
+	initial begin 
+	$monitor(" t0=%b,t1=%b,t2=%b, reset=%b clk=%b Q0=%b,Q1=%b,Q2=%b,qb0=%b,qb1=%b,qb2=%b",t0,t1,t2,reset,clk,Q0,Q1,Q2,qb0,qb1,qb2);
+    end  
+endmodule
+
 ```
