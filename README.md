@@ -521,17 +521,17 @@ endmodule
 # Asynchronous dual port 
 ##[RTL]
 ```bash
-module ram16_8(clk,din,dout,reset,we,re,wa,ra);
+module ram16_8(wr_clk,rd_clk,din,dout,reset,we,re,wa,ra);
 parameter WIDTH=8,
           DEPTH=16,
 			 add=4;
-input re,we,clk,reset;
+input re,we,wr_clk,rd_clk,reset;
 input [add-1:0]wa,ra;
 input [WIDTH-1:0]din;
 output reg [WIDTH-1:0]dout;
 reg [WIDTH-1:0]mem[DEPTH-1:0];
 integer i;
-always@(posedge clk or posedge reset)
+always@(posedge wr_clk or posedge reset)
 begin
 if(reset)
  begin
@@ -544,7 +544,7 @@ if(we)
 mem[wa]<=din; //if single poet dount<=mem[wa]
     end
 end
-always@(posedge clk or posedge reset) //depends on only read
+always@(posedge rd_clk or posedge reset) //depends on only read
 begin
 if(reset)
 begin
@@ -556,6 +556,123 @@ if(re)
 dout<=mem[ra];
 end
 end
+endmodule
+```
+### [Test bench]
+```bash
+module ram16_8_tb;
+
+	// Inputs
+	reg wr_clk;
+	reg rd_clk;
+	reg [7:0] din;
+	reg reset;
+	reg we;
+	reg re;
+	reg [3:0] wa;
+	reg [3:0] ra;
+  
+	// Outputs
+	wire [7:0] dout;	// Instantiate the Unit Under Test (UUT)
+	ram16_8 uut (
+	   .wr_clk(wr_clk),
+		.rd_clk(rd_clk), 
+		.din(din), 
+		.dout(dout), 
+		.reset(reset), 
+		.we(we), 
+		.re(re), 
+		.wa(wa), 
+		.ra(ra)
+	);
+	    always
+		  begin
+		  wr_clk=0;
+		  #5;
+		  wr_clk=1;
+		  #5;
+		  end
+		  always
+		  begin
+		  rd_clk=0;
+		  #5;
+		  rd_clk=1;
+		  #5;
+		  end
+		  
+		  task re_set;
+			begin
+				@(negedge wr_clk or negedge rd_clk)
+					reset=1'b1;
+				@(negedge wr_clk or negedge rd_clk)
+					reset=1'b0;
+		  end
+		  endtask
+		  task write(input [3:0]a,input m,input [7:0]l);
+		  begin
+		  @(negedge wr_clk)
+		  din=l;
+		  wa=a;
+		  we=m;
+		  end
+		  endtask
+		  task read(input [3:0]b,input n);
+		  begin
+		  @(negedge rd_clk)
+		  ra=b;
+		  re=n;
+		  end
+		  endtask
+		  
+		  task wr_rd(input i,input y,input[3:0]q,input[7:0]x,input[3:0]s);
+			begin
+				@(negedge rd_clk or negedge wr_clk)
+				we=i;
+				re=y;
+				wa=q;
+				ra=s;
+				din=x;
+				#10;
+			end
+		endtask
+
+	initial begin
+		// Initialize Inputs
+		wr_clk = 0;
+		rd_clk=0;
+		din = 0;
+		reset = 1;
+		we = 0;
+		re = 0;
+		wa = 0;
+		ra = 0;
+		#100;
+		re_set;
+		write(4'b1000,1,8'b11110000);
+		#10;
+		write(4'b0001,1,8'b00001111);
+		#10;
+		write(4'b0010,0,8'b11111111);
+		#10;
+		write(4'b1101,1,8'b11111100);
+		#10;
+		read(4'b1000,1'b1);
+		#10;
+		read(4'b0001,1'b1);
+      #10;
+		read(4'b0010,1'b0);
+      #10;
+		read(4'b1101,1'b1);
+      #10;
+		wr_rd(1,1,4'b1111,8'b00001001,4'b1111);
+		#10;
+	end
+      initial begin
+        $monitor("wr_clk=%b rd_clk=%b reset=%b we=%b re=%b wa=%b ra=%b din=%b dout=%b",wr_clk,rd_clk,reset,we,re,wa,ra,din,dout);
+      end
+      initial begin
+       #800 $finish;
+      end		 
 endmodule
 ```
 ## Asunchronous single port
