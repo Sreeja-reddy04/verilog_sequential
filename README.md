@@ -3,8 +3,11 @@
  - T Flip flop
  - JK Flip flop
 # Memories
- - 16x8
- - 8x16
+ - synchronous dual port 16x8
+ - synchronous dual port 8x16
+ - Asunchronous dual port 
+ - Asunchronous single port
+ - FIFO
 ## D Flip flop
 ## [RTL]
 ```bash
@@ -286,7 +289,7 @@ module jkff_tb;
       end
 endmodule
 ```
-# 16x8 
+# synchronous dual port 16x8 
 ## [RTL]
 ```bash
 module ram16_8(clk,din,dout,reset,we,re,wa,ra);
@@ -298,11 +301,13 @@ input [add-1:0]wa,ra;
 input [WIDTH-1:0]din;
 output reg [WIDTH-1:0]dout;
 reg [WIDTH-1:0]mem[DEPTH-1:0];
+integer i;
 always@(posedge clk or posedge reset)
 begin
 if(reset)
-begin
-dout<=0;
+	begin
+for(i=0;i<DEPTH;i=i+1)
+mem[i]<=0;			
 end
 else
 begin
@@ -391,7 +396,7 @@ module ram16_8_tb;
       end		 
 endmodule
 ```
-# 8x16
+# synchronous dual port 8x16
 ### [RTL]
 ```bash
 module ram8_16(clk,din,dout,reset,we,re,wa,ra);
@@ -407,7 +412,8 @@ always@(posedge clk or posedge reset)
 begin
 if(reset)
 begin
-dout<=0;
+for(i=0;i<DEPTH;i=i+1)
+mem[i]<=0;
 end
 else
 begin
@@ -510,5 +516,287 @@ module ram8_16_tb;
       initial begin
        #200 $finish;
       end	
+endmodule
+```
+# Asynchronous dual port 
+##[RTL]
+```bash
+module ram16_8(clk,din,dout,reset,we,re,wa,ra);
+parameter WIDTH=8,
+          DEPTH=16,
+			 add=4;
+input re,we,clk,reset;
+input [add-1:0]wa,ra;
+input [WIDTH-1:0]din;
+output reg [WIDTH-1:0]dout;
+reg [WIDTH-1:0]mem[DEPTH-1:0];
+integer i;
+always@(posedge clk or posedge reset)
+begin
+if(reset)
+ begin
+ for(i=0;i<DEPTH;i=i+1)
+ mem[i]<=0;
+     end
+else
+begin
+if(we)
+mem[wa]<=din; //if single poet dount<=mem[wa]
+    end
+end
+always@(posedge clk or posedge reset) //depends on only read
+begin
+if(reset)
+begin
+dout<=0;
+end
+else
+begin
+if(re)
+dout<=mem[ra];
+end
+end
+endmodule
+```
+## Asunchronous single port
+### [RTL]
+```bash
+module asy_single_port(input wr_in,
+	input rd_in,
+	input [3:0]address,
+	input [7:0]data_in,output [7:0]data_out);
+	 
+	 reg [7:0]mem[15:0];
+	 always@(wr_in,rd_in,address,data_in) // not depends on clk
+     begin
+     if(wr_in&&!rd_in)
+     mem[address]=data_in;
+     end	
+	assign data_out=(rd_in&&!wr_in)? mem[address]:8'hzz;
+endmodule
+```
+## [Test bench]
+```bash
+module asy_single_port_tb;
+
+	// Inputs
+	reg wr_in;
+	reg rd_in;
+	reg [3:0] address;
+   reg [7:0] data_in;
+	// Bidirs
+	wire [7:0] data_out;
+
+	// Instantiate the Unit Under Test (UUT)
+	asy_single_port uut (
+		.wr_in(wr_in), 
+		.rd_in(rd_in), 
+		.address(address), 
+		.data_in(data_in),
+		.data_out(data_out)
+	); 
+	task write(input [3:0]addr,input [7:0]data);
+	begin 
+	 wr_in=1;
+	 rd_in=0;
+	 address=addr;
+	 data_in=data;
+	 #10;
+	 wr_in=0;
+	end
+	endtask
+	
+	task read(input[3:0]b);
+	begin 
+	 rd_in=1;
+	 wr_in=0;
+	 address=b;
+	 #10;
+	 rd_in=0;
+	end
+	endtask
+
+	initial begin
+		// Initialize Inputs
+		wr_in = 0;
+		rd_in = 0;
+		address = 0;
+		#100;
+        write(4'b0001,8'b10101010);
+		  write(4'b0010,8'b11110000);
+		  write(4'b0011,8'b00001111);
+		  #10;
+		  read(4'b0001);
+		  read(4'b0010);
+		  read(4'b0011);
+		  //read(0,4'b0010);
+		  #10;
+		// Add stimulus here
+
+	end
+     initial begin
+        $monitor(" wr_in=%b, rd_in=%b,address=%b,data_in%b,data_out=%b ",wr_in,rd_in,address,data_in,data_out);
+      end
+      initial begin
+       #1000 $finish;
+      end	 
+endmodule
+```
+## FIFO
+### [RTL]
+```bash
+module FIFO(clk,reset,w_en,wr_data,r_en,data_out,full,empty);
+input clk,reset,w_en,r_en;
+parameter WIDTH=8,
+          DEPTH=16;
+input [WIDTH-1:0]wr_data;
+output full,empty;
+output reg [WIDTH-1:0]data_out;
+reg [WIDTH-1:0]mem[DEPTH-1:0];
+parameter ADDR=4;
+reg [ADDR-1:0]wr_ptr;
+reg [ADDR-1:0]rd_ptr;
+reg [DEPTH-1:0]count;
+assign full=(count==DEPTH-1);
+assign empty=(count==0);
+
+always@(posedge clk or posedge reset)
+begin
+if(reset)
+    begin
+wr_ptr<=0;
+rd_ptr<=0;
+data_out<=0;
+count<=0;
+    end
+else 
+  begin 
+if(w_en && !full)
+       begin
+		 mem[wr_ptr]<=wr_data;
+		 wr_ptr<=wr_ptr+1;
+		 count<=count+1;
+		 end
+if(r_en && !empty)
+        begin
+        data_out<=mem[rd_ptr];
+        rd_ptr<=rd_ptr+1;
+        count<=count-1;
+        end
+  end
+end
+endmodule		  
+```
+### [Test bench]
+```bash
+module FIFO_tb;
+	// Inputs
+	reg clk;
+	reg reset;
+	reg w_en;
+	reg [7:0] wr_data;
+	reg r_en;
+	// Outputs
+	wire [7:0] data_out;
+	wire full;
+	wire empty;
+	// Instantiate the Unit Under Test (UUT)
+	FIFO uut (
+		.clk(clk), 
+		.reset(reset), 
+		.w_en(w_en), 
+		.wr_data(wr_data), 
+		.r_en(r_en), 
+		.data_out(data_out), 
+		.full(full), 
+		.empty(empty)
+	);
+	always #5 clk=~clk;
+	task write_fifo(input [7:0]q);
+	begin
+	@(posedge clk)
+	 begin
+    if(!full)
+	 begin
+	 w_en=1;
+	 wr_data=q;
+	 end
+	 @(posedge clk)
+	 w_en=0;
+	 end
+	 end
+	 endtask
+	 task read_fifo();
+	begin
+	@(posedge clk)
+	 begin
+    if(!empty)
+	 begin
+	 r_en=1;
+	 end
+	 @(posedge clk)
+	 r_en=0;
+	 end
+	 end
+	endtask
+	initial begin
+		// Initialize Inputs
+		clk = 0;
+		reset = 1;
+		w_en = 0;
+		wr_data = 0;
+		r_en = 0;
+		#100;
+       reset = 0;
+		 write_fifo(8'h1);
+		 write_fifo(8'h2);
+		 write_fifo(8'h3);
+		 write_fifo(8'h4);
+		 
+		 write_fifo(8'h5);
+		 write_fifo(8'h6);
+		 write_fifo(8'h7);
+		 write_fifo(8'h8);
+		 
+		 write_fifo(8'h9);
+		 write_fifo(8'hA);
+		 write_fifo(8'hB);
+		 write_fifo(8'hC);
+		 
+		 write_fifo(8'hD);
+		 write_fifo(8'hE);
+		 write_fifo(8'hF);
+		 write_fifo(8'h1);
+		 
+	
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 read_fifo();
+		 #10;
+	end
+     initial begin
+        $monitor("clk=%b ,reset=%b ,w_en=%b ,wr_data=%h ,r_en=%b ,data_out=%h ,full=%b ,empty=%b ",clk,reset,w_en,wr_data,r_en,data_out,full,empty);
+      end
+      initial begin
+       #1000 $finish;
+      end  
 endmodule
 ```
