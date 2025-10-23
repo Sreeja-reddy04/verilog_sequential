@@ -24,7 +24,7 @@ parameter s0=2'b00,
 input clk,reset,in;
 output reg out;
 reg [1:0]pr,nx;
-always@(posedge clk or posedge clk)
+always@(posedge clk or posedge reset)
 begin
 if(reset)
  pr<=s0;
