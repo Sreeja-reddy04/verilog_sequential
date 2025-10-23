@@ -1,3 +1,7 @@
+# FSM
+ - Melay 
+ - Moore
+ - Vending Machine
 # Flipflops
  - D Flip flop
  - T Flip flop
@@ -8,8 +12,463 @@
  - Asunchronous dual port 
  - Asunchronous single port
  - FIFO
+## Melay
+### [RTL]
+```bas
+//Melay overlapping sequence detector 1101, LSB first(1011)
+module FSM(clk,reset,in,out);
+parameter s0=2'b00,
+          s1=2'b01,
+			 s2=2'b10,
+			 s3=2'b11;
+input clk,reset,in;
+output reg out;
+reg [1:0]pr,nx;
+always@(posedge clk or posedge clk)
+begin
+if(reset)
+ pr<=s0;
+else
+ pr<=nx;
+end
+always@(*)
+begin
+case(pr)
+s0: if(in==1)
+     nx=s1;
+	  else
+	  nx=s0;
+s1: if(in==0)
+     nx=s2;
+	  else
+	  nx=s1;
+s2: if(in==1)
+     nx=s3;
+	  else
+	  nx=s0;
+s3: if(in==1)
+     nx=s1;
+	  else
+	  nx=s2;
+endcase
+end
+always@(posedge clk)
+begin
+  out<=0;
+  case(pr)
+	  s3: if(in==1)
+	    out<=1'b1;  
+ endcase
+end
+endmodule
+```
+### [Test bench]
+```bash
+module FSM_tb;
+	reg clk;
+	reg reset;
+	reg in;
+	wire out;
+   parameter CYCLE=10;
+	FSM fsm(
+		.clk(clk), 
+		.reset(reset), 
+		.in(in), 
+		.out(out)
+	);
+	always begin
+	 #(CYCLE/2);
+    clk=1'b0;
+	  #(CYCLE/2);
+	 clk=~clk;
+	//Step1 : Generate clock, using parameter "CYCLE"  
+    end
+     task initialize();
+	    begin
+        in=0;   
+       end	
+     endtask		 		 
+   //Delay task
+   task delay(input integer i);
+      begin
+	 #i;
+      end
+   endtask
+  task RESET;
+  begin 
+   delay(5);
+	reset=1'b1;
+	delay(10);
+	reset=1'b0;
+	end
+	endtask
+      task stimulus(input integer b);
+		begin
+		@(negedge clk)
+		in=b;
+		end
+		endtask		 
+   //Process to monitor the changes in the variables
+   initial 
+      $monitor("Reset=%b, pr=%b, clk=%b, in=%b,out=%b ",
+	       reset,fsm.pr,clk,in,out);
+always@(fsm.pr or out)
+      begin
+	 if(fsm.pr==2'b11 && out==1)
+	    $display("Correct output at state %b", fsm.pr);
+      end
+	initial begin
+         initialize;
+	 RESET;
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(1);
+	 RESET;
+	 stimulus(1);
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(1);
+	 delay(10);    
+	 $finish;
+      end	
+endmodule
+```
+## Moore
+### [RTL]
+```bash
+//Moore overlapping 1011
+module seq_det(seq_in,clock,reset,det_o);
+								 
+  parameter IDLE=2'b00,
+            STATE1=2'b01,
+            STATE2=2'b10,
+            STATE3=2'b11;	
+   input seq_in,clock,reset;
+   output det_o;	
+   //Internal registers
+   reg [1:0]state,next_state;
+  always@(posedge clock or posedge reset)
+  begin
+     if(reset)
+        state<=IDLE;
+     else
+        state<=next_state;//Step3 : Write down the sequential logic for present state with active high asychronous reset
+	end
+   //Understand the combinational logic for next state
+   always@(state,seq_in)
+      begin
+	 case(state)
+	    IDLE   : 
+                      if(seq_in==1) 
+		         next_state=STATE1;
+	              else
+	                 next_state=IDLE;
+	    STATE1 : 
+                      if(seq_in==0)
+	                 next_state=STATE2;
+	              else
+	                 next_state=STATE1;
+	    STATE2 :
+                      if(seq_in==1)
+	                 next_state=STATE3;
+	              else 
+	                 next_state=IDLE;
+	    STATE3 : 
+                      if(seq_in==1)
+	                 next_state=STATE1;
+	              else 
+	                 next_state=STATE2;
+	    default: 
+                      next_state=IDLE;
+	 endcase
+      end
+   assign det_o=(state==STATE3)?1'b1:1'b0; //Step4 : Write down the logic for Moore output det_o
+endmodule
+```
+### [Test bench]
+```bash
+module seq_det_tb();
+		
+   //Testbench global variables
+   reg  din,clock,reset;
+   wire dout;
+  //Parameter constant for CYCLE
+   parameter CYCLE = 10;
+   //DUT Instantiation
+   seq_det SQD(.seq_in(din),
+	       .clock(clock),
+	       .reset(reset),
+	       .det_o(dout));
+   always begin
+	 #(CYCLE/2);
+    clock=1'b0;
+	  #(CYCLE/2);
+	 clock=~clock;
+	//Step1 : Generate clock, using parameter "CYCLE"  
+    end
+     task initialize();
+	    begin
+        din=0;   
+       end	
+     endtask		  /*Step2 : Write a task named "initialize" to initialize 
+      		  the input din of sequence detector*/		 
+   //Delay task
+   task delay(input integer i);
+      begin
+	 #i;
+      end
+   endtask
+  task RESET;
+  begin 
+   delay(5);
+	reset=1'b1;
+	delay(10);
+	reset=1'b0;
+	end
+	endtask
+  /*Step3 : Write a task named "RESET" to reset the design,
+            use delay task for adding delays*/
+      task stimulus(input integer b);
+		begin
+		@(negedge clock)
+		din=b;
+		end
+		endtask
+   /*Step4 : Write a task named "stimulus" which provides input to
+            design on negedge of clock*/			 
+   //Process to monitor the changes in the variables
+   initial 
+      $monitor("Reset=%b, state=%b, Din=%b, Output Dout=%b ",
+	       reset,SQD.state,din,dout);		
+   /*Process to display a string after the sequence is detected and dout is asserted.
+   SQD.state is used here as a path hierarchy where SQD is the instance name acting
+   like a handle to access the internal register "state" */
+   always@(SQD.state or dout)
+      begin
+	 if(SQD.state==2'b11 && dout==1)
+	    $display("Correct output at state %b", SQD.state);
+      end	
+   /*Process to generate stimulus by calling the tasks and 
+   passing the sequence in an overlapping mode*/		
+   initial
+      begin
+         initialize;
+	 RESET;
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(1);
+	 RESET;
+	 stimulus(1);
+	 stimulus(0);
+	 stimulus(1);
+	 stimulus(1);
+	 delay(10);    
+	 $finish;
+      end	
+endmodule     
+```
+## Vending Machine
+### [RTL]
+```bash
+//Melay model
+module vending(clk,reset,in,P,R);
+parameter s0=2'b00,
+          s1=2'b01,
+			 s2=2'b10;
+input clk,reset;
+input [1:0]in;
+output reg P,R;
+reg [1:0]pr,nx;
+always@(posedge clk or posedge reset)
+begin
+if(reset)
+ pr<=s0;
+else
+ pr<=nx;
+end
+always@(*)
+begin
+case(pr)
+s0: if(in==1)
+     nx=s1;
+	  else if(in==2)
+	  nx=s2;
+s1: if(in==1)
+     nx=s2;
+	  else if(in==2)
+	  nx=s0;
+	  else
+	  nx=s1;
+s2: if(in==1||in==2)
+     nx=s0;
+	  else
+	  nx=s2;
+	default: nx = s0;  
+endcase
+end
+always@(*)
+begin
+  P<=0;
+  R<=0;
+ case(pr)
+  s1: if(in==2)
+      P<=1;
+  s2: if(in==1)
+      P<=1;
+  else if(in==2)
+   begin
+      P<=1;
+		R<=1;
+		end
+endcase
+end
+endmodule
+//Moore model
+module vending(clk,reset,in,P,R);
+parameter s0=4'b0000,
+          s1=4'b0100,
+			 s2=4'b1000,
+			 s3=4'b0010,
+			 s4=4'b0011;
+input clk,reset;
+input [1:0]in;
+output P,R;
+reg [3:0]pr,nx;
+always@(posedge clk or posedge reset)
+begin
+if(reset)
+ pr<=s0;
+else
+ pr<=nx;
+end
+always@(*)
+begin
+case(pr)
+s0: if(in==1)
+     nx=s1;
+	  else if(in==2)
+	  nx=s2;
+s1: if(in==1)
+     nx=s2;
+	  else if(in==2)
+	  nx=s3;
+	  else
+	  nx=s0;
+s2: if(in==1)
+     nx=s3;
+	  else if(in==2)
+	  nx=s4;
+s3: nx=s0;
+s4: nx=s0;
+	default: nx = s0;  
+endcase
+end
+assign {P,R}=pr[1:0];
+endmodule
+```
+### [Test bench]
+```bash
+module vending_tb;
+	// Inputs
+	reg clk;
+	reg reset;
+	reg [1:0] in;
+	wire P;
+	wire R;
+   parameter CYCLE=10;
+	// Instantiate the Unit Under Test (UUT)
+	vending uut (
+		.clk(clk), 
+		.reset(reset), 
+		.in(in), 
+		.P(P), 
+		.R(R)
+	);
+      always begin
+	 #(CYCLE/2);
+    clk=1'b0;
+	  #(CYCLE/2);
+	 clk=1'b1;
+	//Step1 : Generate clock, using parameter "CYCLE"  
+    end
+     task initialize();
+	    begin
+        in=2'b00;   
+       end	
+     endtask		 		 
+   //Delay task
+   task delay(input integer i);
+      begin
+	 #i;
+      end
+   endtask
+  task RESET;
+  begin 
+   delay(5);
+	reset=1'b1;
+	delay(10);
+	reset=1'b0;
+	end
+	endtask
+      task stimulus(input [1:0]b);
+		begin
+		@(negedge clk)
+		in=b;
+		end
+		endtask		
+		// Initialize Inputs
+		initial begin
+      $monitor("Reset=%b, pr=%b, clk=%b, in=%b,P=%b R=%b",
+	       reset,uut.pr,clk,in,P,R);
+      end
+ //for moore
+always@(uut.pr or P or R)
+      begin
+	 if(uut.pr==4'b0010 && P==1)
+	    $display("Correct output at state %b", uut.pr);
+		 	else if(uut.pr==4'b0011 && P==1)
+	    $display("Correct output at state %b", uut.pr);
+    	 if(uut.pr==4'b0011 && P==1 && R==1)
+	    $display("Correct output at state %b", uut.pr);
+      end
+		/*//for melay
+		always@(uut.pr or P or R)
+      begin
+	 if(uut.pr==2'b01 && P==1)
+	    $display("Correct output at state %b", uut.pr);
+		 	else if(uut.pr==2'10 && P==1)
+	    $display("Correct output at state %b", uut.pr);
+    	 if(uut.pr==2'b10 && P==1 && R==1)
+	    $display("Correct output at state %b", uut.pr);
+      end*/
+	initial begin
+		// Initialize Inputs
+         initialize;
+	 RESET;
+	 stimulus(2'b10);
+	 stimulus(2'b01);
+	 stimulus(2'b10);
+	 stimulus(2'b10);
+	 RESET;
+	 stimulus(2'b00);
+	 stimulus(2'b01);
+	 stimulus(2'b11);
+	 stimulus(2'b00);
+	 delay(10); 
+	 #100 $finish;
+      end	
+endmodule
+```
 ## D Flip flop
-## [RTL]
+### [RTL]
 ```bash
 module dff(clock,reset,d_in,Q_out,Qb_out);
   input clock,reset,d_in;
@@ -25,7 +484,7 @@ module dff(clock,reset,d_in,Q_out,Qb_out);
 	 assign Qb_out=~(Q_out); 
 endmodule          
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module dff_tb();
    reg clk,reset,d;
@@ -76,8 +535,8 @@ module dff_tb();
       end
 endmodule
 ```
-# T Flip flop
-## [RTL]
+## T Flip flop
+### [RTL]
 ```bash
 module tff(clock,reset,t,q,qb);
 input clock,reset,t;
@@ -112,7 +571,7 @@ module d_ff(clock,
 	 assign Qb_out=~(Q_out); 
 endmodule          
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module tff_tb;
 	// Inputs
@@ -176,8 +635,8 @@ module tff_tb;
       end  
 endmodule
 ```
-# JK Flip flop
-## [RTL]
+## JK Flip flop
+### [RTL]
 ```bash
 module jkff(clk,reset,j,k,q,qb);
 input j,k,reset,clk;
@@ -223,7 +682,7 @@ always @(posedge clk)
 	assign qb=~q;
 endmodule
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module jkff_tb;
 	// Inputs
@@ -289,8 +748,8 @@ module jkff_tb;
       end
 endmodule
 ```
-# synchronous dual port 16x8 
-## [RTL]
+## synchronous dual port 16x8 
+### [RTL]
 ```bash
 module ram16_8(clk,din,dout,reset,we,re,wa,ra);
 parameter WIDTH=8,
@@ -319,7 +778,7 @@ end
 end
 endmodule
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module ram16_8_tb;
 	reg clk;
@@ -396,7 +855,7 @@ module ram16_8_tb;
       end		 
 endmodule
 ```
-# synchronous dual port 8x16
+## synchronous dual port 8x16
 ### [RTL]
 ```bash
 module ram8_16(clk,din,dout,reset,we,re,wa,ra);
@@ -425,7 +884,7 @@ end
 end
 endmodule
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module ram8_16_tb;
 
@@ -518,8 +977,8 @@ module ram8_16_tb;
       end	
 endmodule
 ```
-# Asynchronous dual port 
-##[RTL]
+## Asynchronous dual port 
+### [RTL]
 ```bash
 module ram16_8(wr_clk,rd_clk,din,dout,reset,we,re,wa,ra);
 parameter WIDTH=8,
@@ -692,7 +1151,7 @@ module asy_single_port(input wr_in,
 	assign data_out=(rd_in&&!wr_in)? mem[address]:8'hzz;
 endmodule
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module asy_single_port_tb;
 
