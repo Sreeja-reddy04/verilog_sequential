@@ -7,7 +7,7 @@
   - sipo
   - piso
   - pipo
-  - bi_directional
+  - Universal shift
 ### - Counters
   - sync up(4-bit)
   - 3_bit asyn up counter posedge
@@ -289,80 +289,88 @@ module pipo_tb;
       end
 endmodule
 ```
-# bi_directional
+# Universal shift
 ## [RTL]
 ```bash
-module bidir_shift_reg(clk,reset,load,shift_dir,prl_in,prl_out);
-input clk,reset,load,shift_dir;
+module Universal_shift((clk,reset,load,prl_in,prl_out);
+input clk,reset;
+input [1:0]load;
 input [3:0]prl_in;
 output reg[3:0]prl_out;
-//input shift_left,shift_right;
 always@(posedge clk or posedge reset)
 begin
   if(reset)
   begin
      prl_out<=4'b0000;
   end
-  else if(load)
-     begin
-    prl_out<=prl_in;
-	  end
-  else if(shift_dir)
-       begin
-    prl_out<={prl_out[2:0],1'b0};
-	    end
-  else
-        begin
-    prl_out<={1'b0,prl_out[3:1]};
-	     end
-end
+   else
+        case(load)
+            2'b00: prl_out <= prl_out;      // hold
+            2'b01: prl_out <= {prl_out[2:0], 1'b0};  // shift left
+            2'b10: prl_out <= {1'b0, prl_out[3:1]};  // shift right
+            2'b11: prl_out <= prl_in;       // parallel load
+            default: prl_out <= prl_out;    // safety: hold
+        endcase
+end  
 endmodule
 ```
 ## [Test bench]
 ```bash
-module bidir_shift_reg_tb;
+module Universal_shift_tb;
+// Inputs
 	reg clk;
 	reg reset;
-	reg load;
-	reg shift_dir;
+	reg [1:0]load;
 	reg [3:0] prl_in;
+	// Outputs
+	//reg shift_left;
+	//reg shift_right;
 	wire [3:0] prl_out;
-	bidir_shift_reg uut (
+	// Instantiate the Unit Under Test (UUT)
+	Universal_shift uut (
 		.clk(clk), 
 		.reset(reset), 
-		.load(load), 
-		.shift_dir(shift_dir), 
+		.load(load),  
 		.prl_in(prl_in), 
 		.prl_out(prl_out)
-	);   
+	);  //.shift_left(shift_left), 
+		//.shift_right(shift_right), 
 	  always #5 clk=~clk;
 	initial begin
+		// Initialize Inputs
 		clk = 0;
 		reset = 1;
-		load = 0;
+		load = 2'b00;
 		//shift_left=0;
 		//shift_right=0;
-		shift_dir = 0;
 		prl_in = 4'b0000;
+		// Wait 100 ns for global reset to finis
 		#5 reset = 1;
       #10 reset = 0;
+    // Load parallel data
     prl_in = 4'b1010;
-    load = 1;
+    load = 2'b01;
     #10; 
-	 load = 0; 
-    // Shift left operation
-    shift_dir = 1;
+	 load =2'b10; 
 	 #10;
-	 shift_dir = 0;
+    load = 2'b11;
+    #10; 
+	 load =2'b00;
+    #10;
+    load = 2'b01;
+    #10; 
+	 load =2'b10; 
 	 #10;
-	 shift_dir = 1;
-	 #40;
+    load = 2'b11;
+    #10; 
+	 load =2'b00;	 // After one clock, data loaded
 	end
      initial begin
       #200 $finish;
 		end
 		initial begin
-   $monitor("clk=%b,reset=%b,load=%b shift_dir=%b prl_in=%b,prl_out=%b",clk,reset,load,shift_dir,prl_in,prl_out);
+   $monitor("clk=%b,reset=%b,load=%b prl_in=%b,prl_out=%b",clk,reset,load,prl_in,prl_out);
+	//Step3 : Use $monitor to display the various inputs and outputs
       end 
 endmodule
 ```
