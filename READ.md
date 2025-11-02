@@ -14,8 +14,7 @@
   - 3_bit asyn down counter posedge
   - mod12_upcounter
   - bidirectional up-down
-  - 4-bit Ring counter
-  - N-bit Ring counter
+  - Ring counter
   - Johnson counter
   - Gray code counter
 ## SR latch-[RTL]
@@ -873,8 +872,9 @@ module threebit_asyn_down_counter_tbb;
     end  
 endmodule
 ```
-# 4-bit Ring counter
-## [RTl]
+# Ring counter
+## Method 1
+### [RTl]
 ```bash
 module ring_counter(clk,pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3,q0,q1,q2,q3,qb0,qb1,qb2,qb3);
 input clk;
@@ -969,8 +969,8 @@ $monitor("clk=%b,pr0=%b,pr1=%b,pr2=%b,pr3=%b,clr0=%b,clr1=%b,clr2=%b,clr3=%b,q0=
       end
 endmodule
 ```
-# N-bit Ring counter
-## [RTL]
+## Method 2
+### [RTL]
 ```bash
 module ring_counter(clk,count,reset);  
 parameter N=6;
