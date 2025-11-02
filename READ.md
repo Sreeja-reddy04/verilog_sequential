@@ -17,6 +17,7 @@
   - 4-bit Ring counter
   - N-bit Ring counter
   - Johnson counter
+  - Gray code counter
 ## SR latch-[RTL]
 ```bash
 module SR_latch(s,r,q,qb);
@@ -24,7 +25,6 @@ input s,r;
 output q,qb;
 nor n1(q,r,qb);
 nor n2(qb,s,q);
-
 endmodule
 ```
 ## [Test bench]
@@ -890,7 +890,6 @@ assign q1=b;
 assign q2=c;
 assign q3=e;
 endmodule
-
 module dff(clk,clr,pre,d_in,Q_out,Qb_out);
    input clk,d_in,clr,pre;
 	output reg Q_out;
@@ -1013,7 +1012,8 @@ initial begin
 endmodule
 ```
 # Johnson counter
-## [RTL]
+## Method 1
+### [RTL]
 ```bash
 module johnson_counter(clk,pr0,pr1,pr2,pr3,clr0,clr1,clr2,clr3,q0,q1,q2,q3,qb0,qb1,qb2,qb3);
 input clk;
@@ -1045,7 +1045,7 @@ module dff(clk,clr,pre,d_in,Q_out,Qb_out);
 	 assign Qb_out=~(Q_out); 
 endmodule 
 ```
-## [Test bench]
+### [Test bench]
 ```bash
 module johnson_counter_tb;
 	reg clk;
@@ -1106,3 +1106,165 @@ $monitor("clk=%b,pr0=%b,pr1=%b,pr2=%b,pr3=%b,clr0=%b,clr1=%b,clr2=%b,clr3=%b,q0=
       end
 endmodule
 ```
+## Method 2
+### [RTL]
+```bash
+module johnson_counter(clk,reset,q);
+parameter size=4;
+input clk,reset;
+output reg [size-1:0]q;
+always@(posedge clk)
+begin
+  if(reset)
+    q<=1;
+	else 
+	   q<={~q[0],q[size-1:1]};
+end 
+endmodule 
+```
+### [Test bench]
+```bash
+module johnson_counter_tb;
+parameter size=4;
+reg clk;
+reg reset;
+wire [size-1:0]q;
+johnson_counter uut(.clk(clk),.reset(reset),.q(q));
+always #5 clk=~clk;
+ initial begin
+ clk=0;
+ reset=1;
+  #10;
+ reset=0;
+ end
+ initial begin
+      #500 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,q=%b",clk,reset,q);
+      end
+endmodule 
+```
+## Gray code counter
+### [RTL]
+```bash
+//`define 3bit
+`define n_bit
+`ifdef 3bit
+module graycode_counter(clk,reset,in,out);
+input clk,reset;
+input [2:0]in;
+output reg [2:0]out;
+`endif
+`ifdef n_bit
+module graycode_counter(clk,reset,out);
+parameter N=5;
+input clk,reset;
+output reg [N-1:0]out;
+ `endif
+`ifdef 3bit
+always@(posedge clk)
+begin
+  if(reset)
+    out<=3'b000;
+  else
+    out<={in[2],in[2]^in[1],in[1]^in[0]};
+end
+
+`elsif n_bit 
+reg [N-1:0]in;
+always@(posedge clk or posedge reset)
+begin
+  if(reset)
+    in<={N{1'b0}};
+	 else
+	in<=in+1;
+end
+always@(*)
+begin
+    out<=in^(in>>1);
+end
+`endif
+endmodule
+```
+### [Test bench]
+```bash
+//`define 3bit
+`define n_bit
+module geaycode_counter_tb;
+`ifdef 3bit
+	// Inputs
+	reg clk;
+	reg reset;
+	reg [2:0]in;
+	// Outputs
+	wire [2:0]out;
+   integer i;
+	graycode_counter uut (
+		.clk(clk), 
+		.reset(reset),
+      .in(in),		
+		.out(out)
+	`endif
+	`ifdef n_bit
+	// Inputs
+	parameter N=4;
+	reg clk;
+	reg reset;
+	wire [N-1:0]out;
+	// Instantiate the Unit Under Test (UUT)
+	graycode_counter uut (
+		.clk(clk), 
+		.reset(reset), 
+		.out(out)
+	);
+`endif
+   always #5 clk=~clk;
+	`ifdef 3bit
+	initial begin
+		// Initialize Inputs
+		clk = 0;
+		reset = 1;
+		in = 0;
+		// Wait 100 ns for global reset to finish
+		#100;
+        reset=0;
+		 for(i=0;i<8;i=i+1)
+		 begin
+		 in=i;
+		  #10;
+		  end
+	end
+	initial begin
+      #500 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,in=%b out=%b",clk,reset,in,out);
+      end 
+	`elsif n_bit
+	initial begin
+		// Initialize Inputs
+		clk = 0;
+		reset = 1;
+		#10;
+        reset=0;
+		  #10;
+	end
+	initial begin
+      #500 $finish;
+		end
+		initial begin
+   $monitor("clk=%b,reset=%b,out=%b",clk,reset,out);
+      end 
+		`endif
+endmodule
+
+```
+
+
+
+
+
+
+
+
