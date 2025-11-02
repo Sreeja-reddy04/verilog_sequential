@@ -1191,7 +1191,7 @@ endmodule
 ```bash
 //`define 3bit
 `define n_bit
-module geaycode_counter_tb;
+module graycode_counter_tb;
 `ifdef 3bit
 	// Inputs
 	reg clk;
